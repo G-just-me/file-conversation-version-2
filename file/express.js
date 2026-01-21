@@ -14,7 +14,7 @@ try {
     ffmpegPath = 'ffmpeg';
 }
 const app = express();
-const upload = multer({ limits: { fileSize: 1024 * 1024 * 500 } }); // 500MB limit
+const upload = multer({ limits: { fileSize: 1024 * 1024 * 500 } }); // จำกัด500MB 
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -35,7 +35,7 @@ app.post('/convert', upload.single('file'), async (req, res) => {
     }
 });
 
-// Helper to write buffer to temp file
+// ตัวช่วยในการเขียนbufferลงไฟล์
 function writeTempFile(buffer, ext) {
     const tmpDir = os.tmpdir();
     const name = `upload-${Date.now()}-${Math.floor(Math.random()*10000)}.${ext}`;
@@ -44,7 +44,7 @@ function writeTempFile(buffer, ext) {
     return filePath;
 }
 
-// Map resolution preset to height and default bitrate
+// ตั้งค่าความละเอียด
 const resolutionMap = {
     '240p': {h:240, bitrate:'400k'},
     '360p': {h:360, bitrate:'800k'},
@@ -55,13 +55,12 @@ const resolutionMap = {
 };
 
 app.post('/transcode', upload.single('file'), async (req, res) => {
-    // expected fields: format (mp4/webm/ogg), quality (e.g. '720p' or 'custom'), bitrate (if custom)
     console.log('POST /transcode received');
     console.log('req.file:', req.file ? 'present, size=' + req.file.size : 'missing');
     console.log('req.body:', req.body);
     
     if (!req.file) return res.status(400).send('No file uploaded');
-    const format = 'mp4'; // hardcoded to MP4
+    const format = 'mp4'; // ค่าตายตัวเป็น MP4
     const quality = req.body.quality || '720p';
     
     console.log('Transcoding: format=mp4, quality=' + quality);
@@ -72,10 +71,10 @@ app.post('/transcode', upload.single('file'), async (req, res) => {
     const outPath = path.join(os.tmpdir(), `out-${Date.now()}-${Math.floor(Math.random()*10000)}.${format}`);
 
     try {
-        // build ffmpeg args for MP4 only
+        // args ffmpeg สำหรับ MP4 เท่านั้น
         const args = ['-y', '-i', inputPath];
 
-        // determine scaling and bitrate based on quality
+        // กำหนดมาตราส่วน
         const resMap = {
             '240p': {h:240, br:'400k'},
             '360p': {h:360, br:'800k'},
@@ -140,7 +139,7 @@ app.post('/transcode', upload.single('file'), async (req, res) => {
     }
 });
 
-// Audio extraction endpoint
+// สิ้นสุดการแยกเสียง
 app.post('/extract-audio', upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).send('No file uploaded');
     const format = (req.body.format || 'mp3').toLowerCase();

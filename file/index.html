@@ -10,7 +10,7 @@
     <div class="tabs">
       <div class="tab active" data-target="filesTab">Convert Files</div>
       <div class="tab" data-target="videoTab">Video → Audio</div>
-      <div class="tab" data-target="videoToVideoTab">Video → Video</div>
+      <div class="tab" data-target="videoToVideoTab">Video → Mp4</div>
     </div>
 
     <h1>File Converter</h1>
@@ -99,11 +99,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.7/dist/ffmpeg.min.js"></script>
   <script>
-    // configure pdf.js worker (CDN)
+    // configureหารทำงานของ pdf.js 
     if (window.pdfjsLib) {
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
     }
-    // theme
+    // ธีม
     const themeToggle = document.getElementById('themeToggle');
     const body = document.body;
     
@@ -120,7 +120,7 @@
       themeToggle.textContent = isDark ? 'Light Mode' : 'Dark Mode';
     });
 
-    // File convert function
+    // ฟังชั่นแปลงไฟล์
     const fileInput = document.getElementById('fileInput');
     const fileInputDisplay = document.getElementById('fileInputDisplay');
     const formatSelect = document.getElementById('outputFormat');
@@ -129,7 +129,7 @@
     const dropArea = document.getElementById('dropArea');
     let filesArray = [];
 
-    // Utility: read file as ArrayBuffer
+    // อ่านไฟลเป็น ArrayBuffer
     function readFileAsArrayBuffer(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -139,12 +139,12 @@
       });
     }
 
-    // Utility: canvas -> blob promise
+    // canvas - blob promise
     function canvasToBlob(canvas, type, quality) {
       return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
     }
 
-    // Convert a PDF ArrayBuffer into images for each page
+    // แปลง ArrayBuffer ของไฟล์ PDF เป็นรูปภาพ
     async function convertPdfToImages(arrayBuffer, format, baseName) {
       if (!window.pdfjsLib) throw new Error('pdf.js not loaded');
       const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
@@ -179,7 +179,7 @@
       return results;
     }
 
-    // way to input
+    // input
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       dropArea.addEventListener(eventName, preventDefaults, false);
     });
@@ -189,7 +189,7 @@
       e.stopPropagation();
     }
 
-    // Highlight drop area
+    // Highlight พื้นที่ที่วางใว้
     ['dragenter', 'dragover'].forEach(eventName => {
       dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight'), false);
     });
@@ -198,10 +198,10 @@
       dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight'), false);
     });
 
-    // Handle dropped files
+    // จัดหารไฟล์ที่วาง
     dropArea.addEventListener('drop', handleDrop, false);
 
-    // video drop area handlers
+    // พื้นที่วางวิดีโอ
     const videoDropArea = document.getElementById('videoDropArea');
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       videoDropArea.addEventListener(eventName, preventDefaults, false);
@@ -214,7 +214,7 @@
     });
     videoDropArea.addEventListener('drop', handleVideoDrop, false);
 
-    // video2 (video->video) drop handlers
+    // ตัวจัดการ(video-mp4) 
     const video2DropArea = document.getElementById('video2DropArea');
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       video2DropArea.addEventListener(eventName, preventDefaults, false);
@@ -232,16 +232,16 @@
       const newFiles = dt.files;
       
       if (newFiles.length > 0) {
-        // Create a new DataTransfer
+        // สร้างหารถ่ายโอนข้อมูล
         const dataTransfer = new DataTransfer();
         
-        // Add existing files
+        // เพิ่มไฟลที่มีอยู่
         filesArray.forEach(file => dataTransfer.items.add(file));
         
-        // Add new files
+        // เพิ่มไฟล์ใหม่
         Array.from(newFiles).forEach(file => dataTransfer.items.add(file));
         
-        // Update the file input with combined files
+        // อัปเดตข้อมูลไฟล์เข้าด้วยไฟล์ที่รวมกันแล้ว
         fileInput.files = dataTransfer.files;
         updateFileList(dataTransfer.files);
       }
@@ -278,28 +278,28 @@
     fileInput.addEventListener('change', (e) => {
       const newFiles = e.target.files;
       if (newFiles.length > 0) {
-        // Create a new DataTransfer to combine existing and new files
+        // สร้าง DataTransfer ใหม่เพื่อรวมไฟล์ที่มีอยู่และไฟล์ใหม่เข้าด้วยกัน
         const dataTransfer = new DataTransfer();
         
-        // Add existing files
+        // เพิ่มไฟล์ที่มีอยู่แล้ว
         filesArray.forEach(file => dataTransfer.items.add(file));
         
-        // Add new files
+        // เพิ่มไฟลใหม่
         Array.from(newFiles).forEach(file => dataTransfer.items.add(file));
         
-        // Update the file input with combined files
+        // อัปเดตข้อมูลไฟล์ที่เข้ามาด้วยไฟล์ที่รวมกันแล้ว
         fileInput.files = dataTransfer.files;
         fileInputDisplay.textContent = `${dataTransfer.files.length} file(s) selected`;
         updateFileList(dataTransfer.files);
       }
     });
 
-    // video input handling
+    // ตัวรับวิดีโอเข้า
     const videoInput = document.getElementById('videoInput');
     const videoInputDisplay = document.getElementById('videoInputDisplay');
     let videoFilesArray = [];
 
-    // video2 (video->video) input handling
+    // ตัวจัดการinputของ video2 -video-mp4
     const video2Input = document.getElementById('video2Input');
     const video2InputDisplay = document.getElementById('video2InputDisplay');
     let video2FilesArray = [];
@@ -390,7 +390,7 @@
       });
     }
 
-    // Tabs switching
+    // สลับแท็บ
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -401,7 +401,7 @@
       });
     });
 
-    // show/hide custom bitrate input
+    // แสดง/ซ่อน input บิตเรตแบบกำหนดเอง
     const videoQuality = document.getElementById('videoQuality');
     const videoCustomBitrate = document.getElementById('videoCustomBitrate');
     videoQuality.addEventListener('change', () => {
@@ -421,12 +421,12 @@
       try {
         const format = formatSelect.value;
 
-        // process a single file (handles PDF multi-page as images)
+        // จัดการ PDF หลายหน้า
         async function processFile(file) {
           console.log('Processing file:', file.name);
           const baseName = file.name.split('.').slice(0, -1).join('.');
 
-          // Handle PDFs by rendering pages and exporting images
+          // จัดการไฟล์ PDF โดยการแสดงผลหน้าต่างๆ และส่งออกรูปภาพ
           if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
             const arrayBuffer = await readFileAsArrayBuffer(file);
             await convertPdfToImages(arrayBuffer, format, baseName);
@@ -434,7 +434,7 @@
             return;
           }
 
-          // Default behavior: re-download file with new extension
+          // โหลดไฟล์ใหม่
           const arrayBuffer = await readFileAsArrayBuffer(file);
           const blob = new Blob([arrayBuffer], {type: file.type});
           const url = URL.createObjectURL(blob);
@@ -448,7 +448,7 @@
           console.log('File converted (renamed):', file.name);
         }
 
-        // Run all conversions in parallel
+        // ดำเนินการแปลงทั้งหมดพร้อมกัน
         await Promise.all(filesArray.map(f => processFile(f)));
 
         const successMessage = `All ${filesArray.length} files processed. Total size: ${(filesArray.reduce((sum, f) => sum + f.size, 0)/1024).toFixed(2)} KB`;
@@ -461,28 +461,22 @@
       }
     });
 
-    // --- Video -> Audio conversion ---
-    // FFmpeg (wasm) helpers (loaded on demand)
-    // createFFmpeg may be exposed directly or under window.FFmpeg; if missing we'll try to load the script dynamically.
     let createFFmpeg = window.createFFmpeg || (window.FFmpeg && window.FFmpeg.createFFmpeg) || null;
     let fetchFile = window.fetchFile || (window.FFmpeg && window.FFmpeg.fetchFile) || null;
     if (!fetchFile && window.fetch) fetchFile = (f) => fetch(f).then(r => r.arrayBuffer()).then(b => new Uint8Array(b));
     let ffmpeg = null;
 
     function appendLog(msg) {
-      // Logging disabled - logs are now hidden
+      // ปิดการบันทึก
       try {
         const panel = document.getElementById('logPanel');
         if (!panel) return;
-        // panel.style.display = ''; // Keep hidden
         const time = new Date().toLocaleTimeString();
-        // panel.textContent += `[${time}] ${msg}\n`; // Don't append
-        // panel.scrollTop = panel.scrollHeight;
       } catch (e) { console.log('log error', e); }
     }
 
     async function loadFfmpegScript() {
-      // try local vendor copy first, then CDN
+      // ลอง coppy local vendor ก่อน
       if (createFFmpeg) return;
       const candidates = [
         './vendor/ffmpeg.min.js',
@@ -503,7 +497,7 @@
         try {
           appendLog('Trying ' + src);
           await loadScript(src);
-          // re-evaluate globals
+          // ประเมินค่าตัวแปรใหม่
           createFFmpeg = window.createFFmpeg || (window.FFmpeg && window.FFmpeg.createFFmpeg) || null;
           fetchFile = window.fetchFile || (window.FFmpeg && window.FFmpeg.fetchFile) || fetchFile;
           appendLog('Loaded script: ' + src + ' (createFFmpeg=' + !!createFFmpeg + ')');
@@ -574,7 +568,7 @@
             resolve(audioBlob);
           };
 
-          // play and record
+          // เล่นวิดีโอและบันทึก
           videoEl.play().catch(()=>{});
           recorder.start();
 
@@ -583,7 +577,7 @@
             videoEl.remove();
           }, {once:true});
 
-          // Safety: if playback doesn't fire ended (seeked), stop when currentTime reaches duration
+          // หากเล่นวิดีโอไปเรื่อยๆแบบไม่หยุดจะบังคับให้หยุดเมื่อเวลาถึงระยะเวลาที่กำหนด
           setTimeout(() => {
             const fallback = () => { if (recorder.state === 'recording') recorder.stop(); };
             const safeTime = (videoEl.duration && !isNaN(videoEl.duration)) ? (videoEl.duration*1000 + 1000) : 60000;
@@ -595,7 +589,7 @@
       });
     }
 
-    // Server-side helpers: use Express endpoints when ffmpeg.wasm is unavailable
+    // ตัวช่วยฝั่งเซิร์ฟเวอร์ ใช้ endpoint ของ Express ตอนที่ ffmpeg.wasm ไม่พร้อมใช้งาน
     async function serverExtractAudio(file, format) {
       const fd = new FormData();
       fd.append('file', file, file.name);
@@ -662,7 +656,7 @@
           try {
             const base = file.name.split('.').slice(0,-1).join('.');
             if (usingFFmpeg) {
-              // Use ffmpeg.wasm to extract audio directly
+              // ใช้ ffmpeg.wasm เพื่อแยกเสียงโดยตรง
               const inName = `in.${file.name.split('.').pop()}`;
               const outName = `${base}.${selectedFormat}`;
               ffmpeg.FS('writeFile', inName, await fetchFile(file));
@@ -687,7 +681,7 @@
               ffmpeg.FS('unlink', inName);
               ffmpeg.FS('unlink', outName);
             } else {
-              // Try server-side extraction first (if available), otherwise record via captureStream (webm)
+              // ลองใช้ฝั่งเซิร์ฟเวอร์
               let handled = false;
               if (selectedFormat !== 'webm') {
                 try {
@@ -731,7 +725,7 @@
       }
     });
 
-    // Video -> Video (transcode) handler moved inside script
+    // จัดการไฟล์วิดีโอ -mp4 ถูกย้ายไปอยู่ภายในสคริปต์แล้ว
     const convertVideoToVideoButton = document.getElementById('convertVideoToVideoButton');
     convertVideoToVideoButton.addEventListener('click', async () => {
       const outEl = document.getElementById('video2Output');
@@ -777,17 +771,17 @@
       outEl.textContent = 'All videos converted.';
     });
 
-    // Canvas-based real-time transcoding with audio (MP4/WebM)
+    // การแปลงไฟล์เสียงแบบเรียลไทม์ (MP4/WebM)
     async function transcodeViaCanvasToWebm(file, targetHeight) {
       return new Promise(async (resolve, reject) => {
         try {
           const url = URL.createObjectURL(file);
           const video = document.createElement('video');
           video.src = url;
-          video.muted = true;  // Mute during recording so user doesn't hear it
+          video.muted = true;  // ปิดเสียงระหว่างเล่น
           video.playsInline = true;
 
-          // Wait for metadata to load completely
+          // รอข้อมูล metadata
           await new Promise((res) => {
             const onLoadedMetadata = () => {
               video.removeEventListener('loadedmetadata', onLoadedMetadata);
@@ -796,7 +790,7 @@
             video.addEventListener('loadedmetadata', onLoadedMetadata);
           });
 
-          // Wait a bit more to ensure duration is available
+          // รอเพื่อให้แน่ใจว่าใช้งานได้
           await new Promise(res => setTimeout(res, 100));
 
           const origW = video.videoWidth;
@@ -810,12 +804,12 @@
           canvas.height = height % 2 === 1 ? height-1 : height;
           const ctx = canvas.getContext('2d');
 
-          const canvasStream = canvas.captureStream(120); // 120fps for faster encoding
+          const canvasStream = canvas.captureStream(120); // 120fps เพื่อทำให้เร็วขึ้น
           
-          // Extract audio from video element (even though video is muted, we can still capture audio)
+          // แยกเสียงออกจากประกอบวิดีโอ
           let audioStream = null;
           try {
-            // Capture full stream to get audio tracks
+            // แยกเสียงแต่ละ tracks
             const fullStream = video.captureStream ? video.captureStream() : null;
             if (fullStream) {
               const audioTracks = fullStream.getAudioTracks();
@@ -824,16 +818,15 @@
               }
             }
           } catch (e) {
-            // audio capture failed silently
           }
 
-          // Combine canvas video stream with audio
+          // รวมวิดีโอกับเสียง
           if (audioStream && audioStream.getTracks().length > 0) {
             const audioTracks = audioStream.getTracks();
             audioTracks.forEach(track => canvasStream.addTrack(track));
           }
 
-          // Use WebM for codec support
+          // ใช้ WebM เพื่อรองรับ codec
           const options = { mimeType: 'video/webm;codecs=vp9' };
           if (!MediaRecorder.isTypeSupported(options.mimeType)) {
             options.mimeType = 'video/webm;codecs=vp8,opus';
@@ -843,11 +836,11 @@
           const recorder = new MediaRecorder(canvasStream, options);
           recorder.ondataavailable = (e) => { if (e.data && e.data.size) recorded.push(e.data); };
           recorder.onerror = (e) => console.error('Recorder error', e);
-          recorder.start(250);  // Faster data collection
+          recorder.start(250);  // เก็บข้อมูลเร็วขึ้น
 
           video.play().catch(()=>{});
 
-          // draw loop
+          // loop
           let rafId;
           const draw = () => {
             try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch (e) {}
@@ -860,7 +853,7 @@
             recorder.onstop = async () => {
               const rawBlob = new Blob(recorded, {type: options.mimeType});
               
-              // Try to fix duration metadata using ffmpeg.wasm if available
+              // ลองแก้ไขข้อมูล meta เกี่ยวกับเวลาโดยใช้ ffmpeg.wasm หากมีให้ใช้
               let finalBlob = rawBlob;
               try {
                 if (ffmpeg && ffmpeg.isLoaded && ffmpeg.isLoaded()) {
@@ -877,8 +870,6 @@
                   try { ffmpeg.FS('unlink', outName); } catch(e){}
                 }
               } catch (err) {
-                // ffmpeg not available, use raw blob
-                // video will still play, but seek bar may not show full duration
               }
               
               URL.revokeObjectURL(url);
@@ -888,7 +879,7 @@
             video.remove();
           }, {once:true});
 
-          // Safety stop after duration + 1s
+          // หยุดเพื่อความปลอดภัยเวลา + 1 วินาที
           setTimeout(() => {
             const fallback = () => { if (recorder.state === 'recording') recorder.stop(); };
             const safeTime = (duration && !isNaN(duration)) ? (duration*1000 + 1500) : 60000;

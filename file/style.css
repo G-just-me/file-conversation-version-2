@@ -1,4 +1,4 @@
-/* Base styles */
+/* ธีมหลัก */
 body {
   font-family: Arial, sans-serif;
   margin: 0;
@@ -11,7 +11,7 @@ h1 {
   margin-bottom: 20px;
 }
 
-/* Container to center content and limit width on large screens */
+/* จัดเนื้อหาให้อยู่ตรงกลางและจำกัดความกว้างบนหน้าจอใหญ่ */
 .container {
   max-width: 980px;
   margin: 0 auto;
@@ -38,7 +38,7 @@ h1 {
   color: white;
 }
 
-/* Actions: select + convert button layout */
+/* แปลงเค้าโครงปุ่ม */
 .actions {
   display: flex;
   gap: 12px;
@@ -54,7 +54,7 @@ h1 {
   background: white;
 }
 
-/* Video->Video controls */
+/* ปุ่มVideo->mp4  */
 .quality-controls {
   display: flex;
   gap: 8px;
@@ -75,7 +75,7 @@ h1 {
 
 .primary-btn:hover { background-color: #3e8e41; }
 
-/* Drop area styles */
+/* จุดที่รับไฟล์ */
 .drop-area {
   border: 2px dashed #ccc;
   border-radius: 8px;
@@ -90,7 +90,7 @@ h1 {
   background-color: #f0f8ff;
 }
 
-/* File list styles */
+/* ธีม File list  */
 #fileList {
   margin: 20px 0;
 }
@@ -102,7 +102,7 @@ h1 {
   border-radius: 4px;
 }
 
-/* Buttons */
+/* ปุ่ม */
 button {
   padding: 8px 16px;
   border: none;
@@ -132,7 +132,7 @@ button {
   right: 20px;
 }
 
-/* Dark mode styles */
+/* ธีมของ Dark mode  */
 body.dark-mode {
   background-color: #1a1a1a;
   color: #f5f5f5;
@@ -148,7 +148,7 @@ body.dark-mode {
   color: #f5f5f5;
 }
 
-/* Dark-mode tab styles (high contrast) */
+/* Dark-mode tab */
 .dark-mode .tabs {
   background: transparent;
 }
@@ -164,13 +164,13 @@ body.dark-mode {
   color: #fff;
 }
 
-/* Log panel styling */
+/* Log panel style */
 .log-panel {
   font-family: monospace;
   font-size: 12px;
 }
 
-/* Mobile styles */
+/* style สำหรับโทรสับ  */
 @media (max-width: 768px) {
   body {
     padding: 10px;
@@ -223,7 +223,7 @@ body.dark-mode {
   }
 }
 
-/* Tablet styles */
+/* style สำหรับ tablet */
 @media (min-width: 769px) and (max-width: 1024px) {
   body {
     padding: 15px;
