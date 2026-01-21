@@ -1,0 +1,15 @@
+{
+  "name": "file-converter",
+  "version": "1.0.0",
+  "description": "Simple file converter server for images, audio and video (uses sharp and ffmpeg-static)",
+  "main": "express.js",
+  "scripts": {
+    "start": "node express.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.32.4",
+    "ffmpeg-static": "^5.0.0"
+  }
+}

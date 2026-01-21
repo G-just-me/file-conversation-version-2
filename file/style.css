@@ -1,0 +1,239 @@
+/* Base styles */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* Container to center content and limit width on large screens */
+.container {
+  max-width: 980px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.tab {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #eee;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: #2196F3;
+  color: white;
+}
+
+/* Actions: select + convert button layout */
+.actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  margin: 10px 0 20px;
+}
+
+.actions select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: white;
+}
+
+/* Video->Video controls */
+.quality-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.quality-controls input[type="text"] {
+  width: 120px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.primary-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.primary-btn:hover { background-color: #3e8e41; }
+
+/* Drop area styles */
+.drop-area {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  margin: 20px 0;
+  transition: all 0.3s ease;
+}
+
+.drop-area.highlight {
+  border-color: #2196F3;
+  background-color: #f0f8ff;
+}
+
+/* File list styles */
+#fileList {
+  margin: 20px 0;
+}
+
+.file-item {
+  padding: 8px;
+  margin: 4px 0;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+/* Buttons */
+button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.file-label {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: #2196F3;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.file-label:hover {
+  background-color: #1976D2;
+}
+
+
+.theme-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+}
+
+/* Dark mode styles */
+body.dark-mode {
+  background-color: #1a1a1a;
+  color: #f5f5f5;
+}
+
+.dark-mode .drop-area {
+  border-color: #444;
+  background-color: #2d2d2d;
+}
+
+.dark-mode .file-item {
+  background-color: #333;
+  color: #f5f5f5;
+}
+
+/* Dark-mode tab styles (high contrast) */
+.dark-mode .tabs {
+  background: transparent;
+}
+
+.dark-mode .tab {
+  background: #2b2b2b;
+  color: #e0e0e0;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+
+.dark-mode .tab.active {
+  background: #1976D2;
+  color: #fff;
+}
+
+/* Log panel styling */
+.log-panel {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  body {
+    padding: 10px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  .drop-area {
+    padding: 15px;
+  }
+
+  button {
+    width: 100%;
+    margin: 5px 0;
+    padding: 12px;
+  }
+
+  .file-label {
+    width: 100%;
+    margin: 5px 0;
+    padding: 12px;
+  }
+
+  .actions {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .actions select {
+    width: 100%;
+  }
+
+
+  .theme-toggle {
+    bottom: 10px;
+    right: 10px;
+    padding: 10px 15px;
+    font-size: 0.9rem;
+  }
+
+  #fileList {
+    font-size: 0.9rem;
+  }
+
+  .file-item {
+    padding: 6px;
+  }
+}
+
+/* Tablet styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+  body {
+    padding: 15px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+  }
+
+  .drop-area {
+    padding: 18px;
+  }
+}

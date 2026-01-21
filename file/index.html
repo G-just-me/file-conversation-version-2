@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>File Converter</title>
+  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+  <div class="container">
+    <div class="tabs">
+      <div class="tab active" data-target="filesTab">Convert Files</div>
+      <div class="tab" data-target="videoTab">Video → Audio</div>
+      <div class="tab" data-target="videoToVideoTab">Video → Video</div>
+    </div>
+
+    <h1>File Converter</h1>
+
+    <div id="filesTab" class="tab-panel">
+      <div id="dropArea" class="drop-area">
+    <span>Drag & Drop files here</span>
+    <p>or</p>
+    <label for="fileInput" class="file-label">Choose files</label>
+    <input type="file" id="fileInput" multiple style="display: none;">
+    <div id="fileInputDisplay" class="file-input-display">No files chosen</div>
+  </div>
+
+    <div class="actions">
+      <select id="outputFormat">
+    <option value="jpg">JPG</option>
+    <option value="png">PNG</option>
+    <option value="webp">WEBP</option>
+    <option value="pdf">PDF</option>
+      </select>
+
+      <button id="convertButton" class="primary-btn">Convert</button>
+    </div>
+
+    <div id="fileList"></div>
+    <div id="output"></div>
+    </div>
+
+    <div id="videoTab" class="tab-panel" style="display:none;">
+      <div id="videoDropArea" class="drop-area">
+        <span>Drag & Drop video files here</span>
+        <p>or</p>
+        <label for="videoInput" class="file-label">Choose video files</label>
+        <input type="file" id="videoInput" accept="video/*" multiple style="display:none;">
+        <div id="videoInputDisplay" class="file-input-display">No videos chosen</div>
+      </div>
+
+      <div class="actions">
+        <select id="audioFormat">
+          <option value="webm">WEBM (audio/webm)</option>
+          <option value="mp3">MP3</option>
+          <option value="wav">WAV</option>
+          <option value="m4a">M4A (AAC)</option>
+          <option value="ogg">OGG</option>
+        </select>
+        <button id="convertVideoButton" class="primary-btn">Convert Videos to Audio</button>
+      </div>
+
+      <div id="videoList"></div>
+      <div id="videoOutput"></div>
+    </div>
+    
+    <div id="videoToVideoTab" class="tab-panel" style="display:none;">
+      <div id="video2DropArea" class="drop-area">
+        <span>Drag & Drop video files here (to transcode)</span>
+        <p>or</p>
+        <label for="video2Input" class="file-label">Choose video files</label>
+        <input type="file" id="video2Input" accept="video/*" multiple style="display:none;">
+        <div id="video2InputDisplay" class="file-input-display">No videos chosen</div>
+      </div>
+
+      <div class="actions">
+        <div class="quality-controls">
+          <label for="videoQuality">Quality</label>
+          <select id="videoQuality">
+            <option value="240p">240p</option>
+            <option value="360p">360p</option>
+            <option value="480p">480p</option>
+            <option value="720p" selected>720p</option>
+            <option value="1080p">1080p</option>
+            <option value="1440p">1440p</option>
+          </select>
+        </div>
+
+        <button id="convertVideoToVideoButton" class="primary-btn">Transcode Videos to MP4</button>
+      </div>
+
+      <div id="video2List"></div>
+        <div id="video2Output"></div>
+        <div id="logPanel" class="log-panel" style="white-space:pre-wrap; margin-top:12px; background:#111; color:#0f0; padding:8px; border-radius:6px; max-height:200px; overflow:auto; display:none;"></div>
+    </div>
+  </div>
+  
+  <button id="themeToggle" class="theme-toggle">Dark Mode</button>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.7/dist/ffmpeg.min.js"></script>
+  <script>
+    // configure pdf.js worker (CDN)
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    }
+    // theme
+    const themeToggle = document.getElementById('themeToggle');
+    const body = document.body;
+    
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark-mode') {
+      body.classList.add('dark-mode');
+      themeToggle.textContent = 'Light Mode';
+    }
+
+    themeToggle.addEventListener('click', () => {
+      body.classList.toggle('dark-mode');
+      const isDark = body.classList.contains('dark-mode');
+      localStorage.setItem('theme', isDark ? 'dark-mode' : '');
+      themeToggle.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    });
+
+    // File convert function
+    const fileInput = document.getElementById('fileInput');
+    const fileInputDisplay = document.getElementById('fileInputDisplay');
+    const formatSelect = document.getElementById('outputFormat');
+    const convertButton = document.getElementById('convertButton');
+    const outputDiv = document.getElementById('output');
+    const dropArea = document.getElementById('dropArea');
+    let filesArray = [];
+
+    // Utility: read file as ArrayBuffer
+    function readFileAsArrayBuffer(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('File read error'));
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    // Utility: canvas -> blob promise
+    function canvasToBlob(canvas, type, quality) {
+      return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+    }
+
+    // Convert a PDF ArrayBuffer into images for each page
+    async function convertPdfToImages(arrayBuffer, format, baseName) {
+      if (!window.pdfjsLib) throw new Error('pdf.js not loaded');
+      const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+      const results = [];
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const viewport = page.getViewport({scale: 1.5});
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = Math.round(viewport.width);
+        canvas.height = Math.round(viewport.height);
+        await page.render({canvasContext: ctx, viewport}).promise;
+
+        let mime = 'image/png';
+        let quality = 0.92;
+        if (format === 'jpg') mime = 'image/jpeg';
+        if (format === 'webp') mime = 'image/webp';
+
+        const blob = await canvasToBlob(canvas, mime, quality);
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${baseName}_page${p}.${format}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          results.push({page: p, blob});
+        }
+      }
+      return results;
+    }
+
+    // way to input
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // Highlight drop area
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight'), false);
+    });
+
+    // Handle dropped files
+    dropArea.addEventListener('drop', handleDrop, false);
+
+    // video drop area handlers
+    const videoDropArea = document.getElementById('videoDropArea');
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      videoDropArea.addEventListener(eventName, preventDefaults, false);
+    });
+    ['dragenter', 'dragover'].forEach(eventName => {
+      videoDropArea.addEventListener(eventName, () => videoDropArea.classList.add('highlight'), false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+      videoDropArea.addEventListener(eventName, () => videoDropArea.classList.remove('highlight'), false);
+    });
+    videoDropArea.addEventListener('drop', handleVideoDrop, false);
+
+    // video2 (video->video) drop handlers
+    const video2DropArea = document.getElementById('video2DropArea');
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      video2DropArea.addEventListener(eventName, preventDefaults, false);
+    });
+    ['dragenter', 'dragover'].forEach(eventName => {
+      video2DropArea.addEventListener(eventName, () => video2DropArea.classList.add('highlight'), false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+      video2DropArea.addEventListener(eventName, () => video2DropArea.classList.remove('highlight'), false);
+    });
+    video2DropArea.addEventListener('drop', handleVideo2Drop, false);
+
+    function handleDrop(e) {
+      const dt = e.dataTransfer;
+      const newFiles = dt.files;
+      
+      if (newFiles.length > 0) {
+        // Create a new DataTransfer
+        const dataTransfer = new DataTransfer();
+        
+        // Add existing files
+        filesArray.forEach(file => dataTransfer.items.add(file));
+        
+        // Add new files
+        Array.from(newFiles).forEach(file => dataTransfer.items.add(file));
+        
+        // Update the file input with combined files
+        fileInput.files = dataTransfer.files;
+        updateFileList(dataTransfer.files);
+      }
+    }
+
+    function updateFileList(files) {
+      const fileList = document.getElementById('fileList');
+      fileList.innerHTML = '<h3>Selected Files:</h3>';
+      filesArray = Array.from(files);
+      
+      filesArray.forEach((file, index) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        
+        const fileName = document.createElement('span');
+        fileName.textContent = `${file.name} (${(file.size/1024).toFixed(2)} KB)`;
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', () => removeFile(index));
+        
+        fileItem.appendChild(fileName);
+        fileItem.appendChild(removeBtn);
+        fileList.appendChild(fileItem);
+      });
+    }
+
+    function removeFile(index) {
+      filesArray.splice(index, 1);
+      updateFileList(filesArray);
+    }
+
+    fileInput.addEventListener('change', (e) => {
+      const newFiles = e.target.files;
+      if (newFiles.length > 0) {
+        // Create a new DataTransfer to combine existing and new files
+        const dataTransfer = new DataTransfer();
+        
+        // Add existing files
+        filesArray.forEach(file => dataTransfer.items.add(file));
+        
+        // Add new files
+        Array.from(newFiles).forEach(file => dataTransfer.items.add(file));
+        
+        // Update the file input with combined files
+        fileInput.files = dataTransfer.files;
+        fileInputDisplay.textContent = `${dataTransfer.files.length} file(s) selected`;
+        updateFileList(dataTransfer.files);
+      }
+    });
+
+    // video input handling
+    const videoInput = document.getElementById('videoInput');
+    const videoInputDisplay = document.getElementById('videoInputDisplay');
+    let videoFilesArray = [];
+
+    // video2 (video->video) input handling
+    const video2Input = document.getElementById('video2Input');
+    const video2InputDisplay = document.getElementById('video2InputDisplay');
+    let video2FilesArray = [];
+
+    function handleVideoDrop(e) {
+      const dt = e.dataTransfer;
+      const newFiles = dt.files;
+      if (newFiles.length > 0) {
+        const dataTransfer = new DataTransfer();
+        videoFilesArray.forEach(file => dataTransfer.items.add(file));
+        Array.from(newFiles).forEach(file => dataTransfer.items.add(file));
+        videoInput.files = dataTransfer.files;
+        updateVideoList(dataTransfer.files);
+      }
+    }
+
+    videoInput.addEventListener('change', (e) => {
+      const newFiles = e.target.files;
+      if (newFiles.length > 0) {
+        const dataTransfer = new DataTransfer();
+        videoFilesArray.forEach(file => dataTransfer.items.add(file));
+        Array.from(newFiles).forEach(file => dataTransfer.items.add(file));
+        videoInput.files = dataTransfer.files;
+        videoInputDisplay.textContent = `${dataTransfer.files.length} video(s) selected`;
+        updateVideoList(dataTransfer.files);
+      }
+    });
+
+    function handleVideo2Drop(e) {
+      const dt = e.dataTransfer;
+      const newFiles = dt.files;
+      if (newFiles.length > 0) {
+        const dataTransfer = new DataTransfer();
+        video2FilesArray.forEach(file => dataTransfer.items.add(file));
+        Array.from(newFiles).forEach(file => dataTransfer.items.add(file));
+        video2Input.files = dataTransfer.files;
+        updateVideo2List(dataTransfer.files);
+      }
+    }
+
+    video2Input.addEventListener('change', (e) => {
+      const newFiles = e.target.files;
+      if (newFiles.length > 0) {
+        const dataTransfer = new DataTransfer();
+        video2FilesArray.forEach(file => dataTransfer.items.add(file));
+        Array.from(newFiles).forEach(file => dataTransfer.items.add(file));
+        video2Input.files = dataTransfer.files;
+        video2InputDisplay.textContent = `${dataTransfer.files.length} video(s) selected`;
+        updateVideo2List(dataTransfer.files);
+      }
+    });
+
+    function updateVideo2List(files) {
+      const list = document.getElementById('video2List');
+      list.innerHTML = '<h3>Selected Videos (to transcode):</h3>';
+      video2FilesArray = Array.from(files);
+      video2FilesArray.forEach((file, index) => {
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        const name = document.createElement('span');
+        name.textContent = `${file.name} (${(file.size/1024).toFixed(2)} KB)`;
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', () => { video2FilesArray.splice(index,1); updateVideo2List(video2FilesArray); });
+        item.appendChild(name);
+        item.appendChild(removeBtn);
+        list.appendChild(item);
+      });
+    }
+
+    function updateVideoList(files) {
+      const list = document.getElementById('videoList');
+      list.innerHTML = '<h3>Selected Videos:</h3>';
+      videoFilesArray = Array.from(files);
+      videoFilesArray.forEach((file, index) => {
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        const name = document.createElement('span');
+        name.textContent = `${file.name} (${(file.size/1024).toFixed(2)} KB)`;
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', () => { videoFilesArray.splice(index,1); updateVideoList(videoFilesArray); });
+        item.appendChild(name);
+        item.appendChild(removeBtn);
+        list.appendChild(item);
+      });
+    }
+
+    // Tabs switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+        const target = document.getElementById(tab.dataset.target);
+        if (target) target.style.display = '';
+      });
+    });
+
+    // show/hide custom bitrate input
+    const videoQuality = document.getElementById('videoQuality');
+    const videoCustomBitrate = document.getElementById('videoCustomBitrate');
+    videoQuality.addEventListener('change', () => {
+      if (videoQuality.value === 'custom') videoCustomBitrate.style.display = '';
+      else videoCustomBitrate.style.display = 'none';
+    });
+
+    convertButton.addEventListener('click', async () => {
+      if (filesArray.length === 0) {
+        outputDiv.textContent = 'Please select at least one file first.';
+        return;
+      }
+
+      outputDiv.textContent = 'Starting conversion...';
+      console.log('Starting conversion of', filesArray.length, 'files');
+
+      try {
+        const format = formatSelect.value;
+
+        // process a single file (handles PDF multi-page as images)
+        async function processFile(file) {
+          console.log('Processing file:', file.name);
+          const baseName = file.name.split('.').slice(0, -1).join('.');
+
+          // Handle PDFs by rendering pages and exporting images
+          if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            await convertPdfToImages(arrayBuffer, format, baseName);
+            console.log('PDF converted:', file.name);
+            return;
+          }
+
+          // Default behavior: re-download file with new extension
+          const arrayBuffer = await readFileAsArrayBuffer(file);
+          const blob = new Blob([arrayBuffer], {type: file.type});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${baseName}.${format}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          console.log('File converted (renamed):', file.name);
+        }
+
+        // Run all conversions in parallel
+        await Promise.all(filesArray.map(f => processFile(f)));
+
+        const successMessage = `All ${filesArray.length} files processed. Total size: ${(filesArray.reduce((sum, f) => sum + f.size, 0)/1024).toFixed(2)} KB`;
+        console.log(successMessage);
+        outputDiv.textContent = successMessage;
+
+      } catch (error) {
+        console.error('Conversion failed:', error);
+        outputDiv.textContent = 'Conversion failed: ' + (error.message || error);
+      }
+    });
+
+    // --- Video -> Audio conversion ---
+    // FFmpeg (wasm) helpers (loaded on demand)
+    // createFFmpeg may be exposed directly or under window.FFmpeg; if missing we'll try to load the script dynamically.
+    let createFFmpeg = window.createFFmpeg || (window.FFmpeg && window.FFmpeg.createFFmpeg) || null;
+    let fetchFile = window.fetchFile || (window.FFmpeg && window.FFmpeg.fetchFile) || null;
+    if (!fetchFile && window.fetch) fetchFile = (f) => fetch(f).then(r => r.arrayBuffer()).then(b => new Uint8Array(b));
+    let ffmpeg = null;
+
+    function appendLog(msg) {
+      // Logging disabled - logs are now hidden
+      try {
+        const panel = document.getElementById('logPanel');
+        if (!panel) return;
+        // panel.style.display = ''; // Keep hidden
+        const time = new Date().toLocaleTimeString();
+        // panel.textContent += `[${time}] ${msg}\n`; // Don't append
+        // panel.scrollTop = panel.scrollHeight;
+      } catch (e) { console.log('log error', e); }
+    }
+
+    async function loadFfmpegScript() {
+      // try local vendor copy first, then CDN
+      if (createFFmpeg) return;
+      const candidates = [
+        './vendor/ffmpeg.min.js',
+        'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.7/dist/ffmpeg.min.js'
+      ];
+
+      const loadScript = (src) => new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = () => resolve(src);
+        s.onerror = () => reject(new Error('Failed to load script: ' + src));
+        document.head.appendChild(s);
+      });
+
+      appendLog('Attempting to load ffmpeg script (local -> CDN)...');
+      let lastErr = null;
+      for (const src of candidates) {
+        try {
+          appendLog('Trying ' + src);
+          await loadScript(src);
+          // re-evaluate globals
+          createFFmpeg = window.createFFmpeg || (window.FFmpeg && window.FFmpeg.createFFmpeg) || null;
+          fetchFile = window.fetchFile || (window.FFmpeg && window.FFmpeg.fetchFile) || fetchFile;
+          appendLog('Loaded script: ' + src + ' (createFFmpeg=' + !!createFFmpeg + ')');
+          return;
+        } catch (err) {
+          appendLog('Failed to load ' + src + ': ' + (err.message || err));
+          lastErr = err;
+        }
+      }
+      throw lastErr || new Error('No ffmpeg script could be loaded');
+    }
+
+    async function ensureFFmpeg() {
+      if (ffmpeg) return ffmpeg;
+      if (!createFFmpeg) {
+        try {
+          await loadFfmpegScript();
+        } catch (err) {
+          appendLog('Error loading ffmpeg script: ' + (err.message || err));
+          throw err;
+        }
+      }
+      if (!createFFmpeg) throw new Error('FFmpeg (wasm) not available after loading script');
+      appendLog('Initializing ffmpeg.wasm...');
+      ffmpeg = createFFmpeg({ log: true });
+      ffmpeg.setLogger(({ type, message }) => appendLog(`ffmpeg ${type}: ${message}`));
+      try {
+        await ffmpeg.load();
+        appendLog('ffmpeg loaded');
+      } catch (err) {
+        appendLog('ffmpeg.load failed: ' + (err.message || err));
+        throw err;
+      }
+      return ffmpeg;
+    }
+
+    async function recordAudioFromVideoFile(file, mimeType) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const url = URL.createObjectURL(file);
+          const videoEl = document.createElement('video');
+          videoEl.src = url;
+          videoEl.muted = true;
+          videoEl.playsInline = true;
+
+          await new Promise((res) => videoEl.addEventListener('loadedmetadata', res, {once:true}));
+
+          const stream = videoEl.captureStream ? videoEl.captureStream() : null;
+          if (!stream) {
+            URL.revokeObjectURL(url);
+            return reject(new Error('captureStream not supported in this browser'));
+          }
+
+          const audioTracks = stream.getAudioTracks();
+          if (audioTracks.length === 0) {
+            URL.revokeObjectURL(url);
+            return reject(new Error('No audio track found in video'));
+          }
+
+          const audioStream = new MediaStream(audioTracks);
+          const options = {mimeType};
+          let recordedChunks = [];
+          const recorder = new MediaRecorder(audioStream, options);
+          recorder.ondataavailable = (e) => { if (e.data && e.data.size) recordedChunks.push(e.data); };
+          recorder.onstop = () => {
+            const audioBlob = new Blob(recordedChunks, {type: mimeType});
+            URL.revokeObjectURL(url);
+            resolve(audioBlob);
+          };
+
+          // play and record
+          videoEl.play().catch(()=>{});
+          recorder.start();
+
+          videoEl.addEventListener('ended', () => {
+            recorder.stop();
+            videoEl.remove();
+          }, {once:true});
+
+          // Safety: if playback doesn't fire ended (seeked), stop when currentTime reaches duration
+          setTimeout(() => {
+            const fallback = () => { if (recorder.state === 'recording') recorder.stop(); };
+            const safeTime = (videoEl.duration && !isNaN(videoEl.duration)) ? (videoEl.duration*1000 + 1000) : 60000;
+            setTimeout(fallback, safeTime);
+          }, 0);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    }
+
+    // Server-side helpers: use Express endpoints when ffmpeg.wasm is unavailable
+    async function serverExtractAudio(file, format) {
+      const fd = new FormData();
+      fd.append('file', file, file.name);
+      fd.append('format', format);
+      try {
+        const res = await fetch('/extract-audio', { method: 'POST', body: fd });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error('Server extraction failed: ' + res.status + ' ' + res.statusText + ' ' + text);
+        }
+        return await res.blob();
+      } catch (err) {
+        appendLog('Fetch error: ' + (err.message || err));
+        throw err;
+      }
+    }
+
+    async function serverTranscode(file, format, quality, bitrate) {
+      const fd = new FormData();
+      fd.append('file', file, file.name);
+      fd.append('format', format);
+      if (quality) fd.append('quality', quality);
+      if (bitrate) fd.append('bitrate', bitrate);
+      try {
+        appendLog('Sending fetch to /transcode: file=' + file.name + ', format=' + format + ', quality=' + quality);
+        const res = await fetch('/transcode', { method: 'POST', body: fd });
+        appendLog('Server response: status=' + res.status);
+        if (!res.ok) {
+          const text = await res.text();
+          appendLog('Server error response: ' + text);
+          throw new Error('Server transcode failed: ' + res.status + ' ' + res.statusText + ' - ' + text);
+        }
+        const blob = await res.blob();
+        appendLog('Received blob: size=' + blob.size);
+        return blob;
+      } catch (err) {
+        appendLog('Fetch error: ' + (err.message || err));
+        throw err;
+      }
+    }
+
+    const convertVideoButton = document.getElementById('convertVideoButton');
+    convertVideoButton.addEventListener('click', async () => {
+      const outEl = document.getElementById('videoOutput');
+      if (videoFilesArray.length === 0) { outEl.textContent = 'Please select at least one video.'; return; }
+      outEl.textContent = 'Starting video->audio conversion...';
+      const selectedFormat = document.getElementById('audioFormat').value;
+
+      const canUseFFmpeg = (typeof createFFmpeg === 'function');
+      let usingFFmpeg = false;
+      if (selectedFormat !== 'webm' && canUseFFmpeg) {
+        outEl.textContent = 'Loading FFmpeg (may take a few seconds)...';
+        try {
+          await ensureFFmpeg();
+          usingFFmpeg = !!ffmpeg;
+        } catch (err) {
+          console.warn('FFmpeg load failed, will fallback to recorder:', err);
+          usingFFmpeg = false;
+        }
+      }
+
+      try {
+        for (const file of videoFilesArray) {
+          try {
+            const base = file.name.split('.').slice(0,-1).join('.');
+            if (usingFFmpeg) {
+              // Use ffmpeg.wasm to extract audio directly
+              const inName = `in.${file.name.split('.').pop()}`;
+              const outName = `${base}.${selectedFormat}`;
+              ffmpeg.FS('writeFile', inName, await fetchFile(file));
+              let args = ['-i', inName, '-vn'];
+              if (selectedFormat === 'wav') args = args.concat(['-acodec','pcm_s16le','-ar','44100','-ac','2', outName]);
+              else if (selectedFormat === 'mp3') args = args.concat(['-acodec','libmp3lame','-q:a','2', outName]);
+              else if (selectedFormat === 'ogg') args = args.concat(['-acodec','libvorbis','-q:a','5', outName]);
+              else if (selectedFormat === 'm4a') args = args.concat(['-c:a','aac','-b:a','128k', outName]);
+              else args = args.concat(['-c:a','copy', outName]);
+
+              await ffmpeg.run(...args);
+              const data = ffmpeg.FS('readFile', outName);
+              const audioBlob = new Blob([data.buffer], {type: `audio/${selectedFormat}`});
+              const aUrl = URL.createObjectURL(audioBlob);
+              const a = document.createElement('a');
+              a.href = aUrl;
+              a.download = outName;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(aUrl);
+              ffmpeg.FS('unlink', inName);
+              ffmpeg.FS('unlink', outName);
+            } else {
+              // Try server-side extraction first (if available), otherwise record via captureStream (webm)
+              let handled = false;
+              if (selectedFormat !== 'webm') {
+                try {
+                  appendLog('Attempting server-side audio extraction for ' + file.name);
+                  const blob = await serverExtractAudio(file, selectedFormat);
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${base}.${selectedFormat}`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  handled = true;
+                } catch (err) {
+                  appendLog('Server extraction failed: ' + (err.message || err));
+                  console.warn('Server extraction failed, falling back to client recorder', err);
+                }
+              }
+
+              if (!handled) {
+                const mime = 'audio/webm';
+                const audioBlob = await recordAudioFromVideoFile(file, mime);
+                const aUrl = URL.createObjectURL(audioBlob);
+                const a = document.createElement('a');
+                a.href = aUrl;
+                a.download = `${base}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(aUrl);
+              }
+            }
+          } catch (err) {
+            console.error('Video conversion error for', file.name, err);
+          }
+        }
+        outEl.textContent = 'Video -> audio conversion completed.';
+      } catch (err) {
+        outEl.textContent = 'Conversion failed: ' + (err.message || err);
+      }
+    });
+
+    // Video -> Video (transcode) handler moved inside script
+    const convertVideoToVideoButton = document.getElementById('convertVideoToVideoButton');
+    convertVideoToVideoButton.addEventListener('click', async () => {
+      const outEl = document.getElementById('video2Output');
+      if (video2FilesArray.length === 0) { outEl.textContent = 'Please select at least one video to transcode.'; return; }
+      const quality = document.getElementById('videoQuality').value || '720p';
+
+      const resolutionMap = {
+        '240p': 240,
+        '360p': 360,
+        '480p': 480,
+        '720p': 720,
+        '1080p': 1080,
+        '1440p': 1440
+      };
+      const targetHeight = resolutionMap[quality] || 720;
+
+      outEl.textContent = 'Starting video quality conversion...';
+      for (const file of video2FilesArray) {
+        try {
+          const base = file.name.split('.').slice(0,-1).join('.');
+          const outName = `${base}_${quality}.mp4`;
+
+          appendLog('Converting ' + file.name + ' to ' + quality);
+          outEl.textContent = `Converting ${file.name} to ${quality}...`;
+          
+          const blob = await transcodeViaCanvasToWebm(file, targetHeight);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = outName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          appendLog('Conversion completed: ' + outName);
+        } catch (err) {
+          console.error('Conversion error for', file.name, err);
+          appendLog('Conversion failed: ' + (err.message || err));
+          outEl.textContent = `Error converting ${file.name}: ${err.message || err}`;
+        }
+      }
+      outEl.textContent = 'All videos converted.';
+    });
+
+    // Canvas-based real-time transcoding with audio (MP4/WebM)
+    async function transcodeViaCanvasToWebm(file, targetHeight) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const url = URL.createObjectURL(file);
+          const video = document.createElement('video');
+          video.src = url;
+          video.muted = true;  // Mute during recording so user doesn't hear it
+          video.playsInline = true;
+
+          // Wait for metadata to load completely
+          await new Promise((res) => {
+            const onLoadedMetadata = () => {
+              video.removeEventListener('loadedmetadata', onLoadedMetadata);
+              res();
+            };
+            video.addEventListener('loadedmetadata', onLoadedMetadata);
+          });
+
+          // Wait a bit more to ensure duration is available
+          await new Promise(res => setTimeout(res, 100));
+
+          const origW = video.videoWidth;
+          const origH = video.videoHeight || 720;
+          const duration = video.duration || 0;
+
+          const height = targetHeight || origH;
+          const width = Math.round(origW * (height / origH));
+          const canvas = document.createElement('canvas');
+          canvas.width = width % 2 === 1 ? width-1 : width;
+          canvas.height = height % 2 === 1 ? height-1 : height;
+          const ctx = canvas.getContext('2d');
+
+          const canvasStream = canvas.captureStream(120); // 120fps for faster encoding
+          
+          // Extract audio from video element (even though video is muted, we can still capture audio)
+          let audioStream = null;
+          try {
+            // Capture full stream to get audio tracks
+            const fullStream = video.captureStream ? video.captureStream() : null;
+            if (fullStream) {
+              const audioTracks = fullStream.getAudioTracks();
+              if (audioTracks.length > 0) {
+                audioStream = new MediaStream(audioTracks);
+              }
+            }
+          } catch (e) {
+            // audio capture failed silently
+          }
+
+          // Combine canvas video stream with audio
+          if (audioStream && audioStream.getTracks().length > 0) {
+            const audioTracks = audioStream.getTracks();
+            audioTracks.forEach(track => canvasStream.addTrack(track));
+          }
+
+          // Use WebM for codec support
+          const options = { mimeType: 'video/webm;codecs=vp9' };
+          if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options.mimeType = 'video/webm;codecs=vp8,opus';
+          }
+          
+          let recorded = [];
+          const recorder = new MediaRecorder(canvasStream, options);
+          recorder.ondataavailable = (e) => { if (e.data && e.data.size) recorded.push(e.data); };
+          recorder.onerror = (e) => console.error('Recorder error', e);
+          recorder.start(250);  // Faster data collection
+
+          video.play().catch(()=>{});
+
+          // draw loop
+          let rafId;
+          const draw = () => {
+            try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch (e) {}
+            rafId = requestAnimationFrame(draw);
+          };
+          draw();
+
+          video.addEventListener('ended', () => {
+            cancelAnimationFrame(rafId);
+            recorder.onstop = async () => {
+              const rawBlob = new Blob(recorded, {type: options.mimeType});
+              
+              // Try to fix duration metadata using ffmpeg.wasm if available
+              let finalBlob = rawBlob;
+              try {
+                if (ffmpeg && ffmpeg.isLoaded && ffmpeg.isLoaded()) {
+                  const inName = `in_${Date.now()}.webm`;
+                  const outName = `out_${Date.now()}.webm`;
+                  
+                  ffmpeg.FS('writeFile', inName, new Uint8Array(await rawBlob.arrayBuffer()));
+                  await ffmpeg.run('-i', inName, '-c', 'copy', outName);
+                  
+                  const data = ffmpeg.FS('readFile', outName);
+                  finalBlob = new Blob([data.buffer], {type: options.mimeType});
+                  
+                  try { ffmpeg.FS('unlink', inName); } catch(e){}
+                  try { ffmpeg.FS('unlink', outName); } catch(e){}
+                }
+              } catch (err) {
+                // ffmpeg not available, use raw blob
+                // video will still play, but seek bar may not show full duration
+              }
+              
+              URL.revokeObjectURL(url);
+              resolve(finalBlob);
+            };
+            try { recorder.stop(); } catch(e) { console.error(e); }
+            video.remove();
+          }, {once:true});
+
+          // Safety stop after duration + 1s
+          setTimeout(() => {
+            const fallback = () => { if (recorder.state === 'recording') recorder.stop(); };
+            const safeTime = (duration && !isNaN(duration)) ? (duration*1000 + 1500) : 60000;
+            setTimeout(fallback, safeTime);
+          }, 0);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    }
+
+  </script>
+</body>
+</html>
